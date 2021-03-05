@@ -562,6 +562,7 @@ terraform plan
 ```
 An execution plan has been generated and is shown below.
 Resource actions are indicated with the following symbols:
+```bash
   + create
 
 Terraform will perform the following actions:
@@ -619,6 +620,7 @@ Plan: 2 to add, 0 to change, 0 to destroy.
 Note: You didn't specify an "-out" parameter to save this plan, so Terraform
 can't guarantee that exactly these actions will be performed if
 "terraform apply" is subsequently run.
+```
 ## Naming convention
 - Name using most specific specialty first and most general specialty last. networking-prod-us-west-aws
 
