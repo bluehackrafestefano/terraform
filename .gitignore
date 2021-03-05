@@ -1,0 +1,10 @@
+# Ignore everything
+*
+
+# Ignore directories, so we can recurse into them
+*/
+
+# Don't ignore .gitignore
+!.gitignore
+!prod.tf
+!README.md
