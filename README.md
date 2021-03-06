@@ -7,6 +7,7 @@ terraform state list
 terraform state show aws_s3_bucket.terraform_course
 terraform plan -destroy
 terraform plan -destroy -out=filenametostoreplan
+terraform destroy
 ```
 
 ## Terraform installation and first example of usage
