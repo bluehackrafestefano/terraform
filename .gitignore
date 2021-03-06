@@ -8,3 +8,5 @@
 !.gitignore
 !prod.tf
 !README.md
+!/sample
+!/modules/web_app/*

@@ -10,15 +10,6 @@ provider "aws" {
   region  = "us-east-1"
 }
 
-# variable "webserver_ami" {
-#   type = string
-#   default = ami-045805cfa04cb5a27
-# }
-
-# resource "aws_instance" "web" {
-#   ami = var.webserver_ami
-# }
-
 resource "aws_s3_bucket" "prod_tf_course" {
   bucket = "tf-course-rafe-stefano"
   acl    = "private"
@@ -83,86 +74,15 @@ resource "aws_security_group" "prod_web" {
   }
 }
 
-# resource "aws_instance" "prod_web" {
-#   count         = 2
-#   ami           = "ami-045805cfa04cb5a27"
-#   instance_type = "t2.micro"
-#   vpc_security_group_ids = [ aws_security_group.prod_web.id ]
-
-#   tags = {
-#     "Terraform" = "true"
-#     "Name"      = "Terraform"
-#   }
-# }
-
-# resource "aws_eip" "prod_web" {
-#   tags = {
-#     "Terraform" = "true"
-#     "Name"      = "Terraform"
-#   }
-# }
-
-# resource "aws_eip_association" "prod_web" {
-#   instance_id = aws_instance.prod_web[0].id
-#   allocation_id = aws_eip.prod_web.id
-# }
-
-resource "aws_elb" "prod_web" {
-  name            = "prod-web"
-  # instances       = aws_instance.prod_web.*.id
-  subnets         = [ aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id ]
-  security_groups = [ aws_security_group.prod_web.id ]
-
-  listener {
-    instance_port     = 80
-    instance_protocol = "http"
-    lb_port           = 80
-    lb_protocol       = "http"
-  }
-
-  tags = {
-    "Terraform" = "true"
-    "Name"      = "Terraform"
-  }
+module "web_app" {
+  source = "./modules/web_app"
 }
 
-resource "aws_launch_template" "prod_web" {
-  name_prefix   = "prod-web"
-  # image_id      = "ami-045805cfa04cb5a27"
-  image_id = var.web_image_id
-  # instance_type = "t2.micro"
-  instance_type = var.web_instance_type
-
-  tags = {
-    "Terraform" = "true"
-    "Name"      = "Terraform"
-  }
-}
-
-resource "aws_autoscaling_group" "prod_web" {
-  # availability_zones  = ["us-east-1a", "us-east-1b"]
-  vpc_zone_identifier = [ aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id ]
-  # desired_capacity    = 1
-  desired_capacity      = var.web_desired_capacity
-  # max_size            = 1
-  max_size              = var.web_max_size
-  # min_size            = 1
-  min_size              = var.web_min_size
-
-  launch_template {
-    id      = aws_launch_template.prod_web.id
-    version = "$Latest"
-  }
-
-  tag {
-    key                 = "Terraform"
-    value               = "true"
-    propagate_at_launch = true
-  }
-}
-
-# Create a new load balancer attachment
-resource "aws_autoscaling_attachment" "prod_web" {
-  autoscaling_group_name = aws_autoscaling_group.prod_web.id
-  elb                    = aws_elb.prod_web.id
-}
+  web_image_id         = var.web_image_id
+  web_instance_type    = var.web_instance_type
+  web_desired_capacity = var.web_desired_capacity
+  web_max_size         = var.web_max_size
+  web_min_size         = var.web_min_size
+  subnets              = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
+  security_groups      = [aws_security_group.prod_web.id]
+  web_app              = "prod"

@@ -787,3 +787,188 @@ var.web_min_size
   - Input variables to accept values from the calling module.
   - Output values to return results to the calling module, which it can then use to populate arguments elsewhere.
   - Resources to define one or more infrastructure objects that the module will manage.
+- To create a module first make a directory called modules
+- Inside this directory create another directory for your module, example is web_app
+- Copy main tf file under this tree and call it main.tf, variables.tf, and outputs.tf as convention says:
+```bash
+cp prod.tf modules/web_app/main.tf
+```
+- Edit variables first:
+```json
+variable "web_image_id" {type = string}
+variable "web_instance_type" {type = string}
+variable "web_desired_capacity" {type = number}
+variable "web_max_size" {type = number}
+variable "web_min_size" {type = number}
+
+variable "subnets" {
+  type = list(string)
+}
+
+variable "security_groups" {
+  type = list(string)
+}
+```
+- Edit main:
+```json
+resource "aws_elb" "this" {
+  name            = "${web-app}-web"
+  subnets         = var.subnets
+  security_groups = var.security_groups
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  tags = {
+    "Terraform" = "true"
+    "Name"      = "Terraform"
+  }
+}
+
+resource "aws_launch_template" "this" {
+  name_prefix   = "${web-app}"
+  image_id = var.web_image_id
+  instance_type = var.web_instance_type
+
+  tags = {
+    "Terraform" = "true"
+    "Name"      = "Terraform"
+  }
+}
+
+resource "aws_autoscaling_group" "this" {
+  vpc_zone_identifier = var.subnets
+  desired_capacity    = var.web_desired_capacity
+  max_size            = var.web_max_size
+  min_size            = var.web_min_size
+
+  launch_template {
+    id      = aws_launch_template.this.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Terraform"
+    value               = "true"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_attachment" "this" {
+  autoscaling_group_name = aws_autoscaling_group.this.id
+  elb                    = aws_elb.this.id
+}
+```
+- Edit outputs:
+```json
+output "dns_name" {
+  value = aws_elb.this.dns_name
+}
+```
+- Edit prod.tf:
+```json
+variable "whitelist" {type = list(string)}
+variable "web_image_id" {type = string}
+variable "web_instance_type" {type = string}
+variable "web_desired_capacity" {type = number}
+variable "web_max_size" {type = number}
+variable "web_min_size" {type = number}
+
+provider "aws" {
+  profile = "default"
+  region  = "us-east-1"
+}
+
+resource "aws_s3_bucket" "prod_tf_course" {
+  bucket = "tf-course-rafe-stefano"
+  acl    = "private"
+}
+
+resource "aws_default_vpc" "default" {
+  tags = {
+    "Terraform" = "true"
+    "Name"      = "Terraform"
+  }
+}
+
+resource "aws_default_subnet" "default_az1" {
+  availability_zone = "us-east-1a"
+
+  tags = {
+    "Terraform" = "true"
+    "Name"      = "Terraform"
+  }
+}
+
+resource "aws_default_subnet" "default_az2" {
+  availability_zone = "us-east-1b"
+
+  tags = {
+    "Terraform" = "true"
+    "Name"      = "Terraform"
+  }
+}
+
+resource "aws_security_group" "prod_web" {
+  name        = "prod_web"
+  description = "Allow http/s inbound traffic"
+
+  ingress {
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      # cidr_blocks = ["0.0.0.0/0"]
+      cidr_blocks = var.whitelist
+  }
+
+  ingress {
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      # cidr_blocks = ["0.0.0.0/0"]
+      cidr_blocks = var.whitelist
+  }
+
+  egress {
+      from_port       = 0
+      to_port         = 0
+      protocol        = "-1"
+      # cidr_blocks     = ["0.0.0.0/0"]
+      cidr_blocks = var.whitelist
+  }
+
+  tags = {
+    "Terraform" = "true"
+    "Name"      = "Terraform"
+  }
+}
+
+module "web_app" {
+  source = "./modules/web_app"
+}
+
+  web_image_id         = var.web_image_id
+  web_instance_type    = var.web_instance_type
+  web_desired_capacity = var.web_desired_capacity
+  web_max_size         = var.web_max_size
+  web_min_size         = var.web_min_size
+  subnets              = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
+  security_groups      = [aws_security_group.prod_web.id]
+
+  web_app              = "prod"
+```
+- At the end of prod.tf if we need the list of variables, you can do that:
+```bash
+cat modules/web_app/variables.tf >> prod.tf
+```
+- Dont forget to add web_app name to the variables.tf
+```json
+variable "web_app" {
+  type = string
+}
+```
+- After configure module, need to init terraform.
