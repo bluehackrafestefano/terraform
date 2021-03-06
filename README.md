@@ -702,3 +702,88 @@ availability
 variables
 modules
 dependencies * Dependencies are important to consider when scaling out systems through code. The code structure and how the dependencies are deployed will impact whether scaling will be an easy task or possibly even at all.
+## Variables
+- Good to organize the code.
+```json
+variable "webserver_ami" {
+  type = string
+  default = ami-045805cfa04cb5a27
+}
+
+resource "aws_instance" "web" {
+  ami = var.webserver_ami
+}
+```
+- Variables can be changed with apply command:
+```bash
+terraform apply -var="webserver_ami=ami-12345"
+```
+## Data Sources
+- Similar to variable but data sources allow data to be fetched or computed for use elsewhere in Terraform configuration. Use of data sources allows a Terraform configuration to make use of information defined outside of Terraform, or defined by another separate Terraform configuration. Each provider may offer data sources alongside its set of resource types.
+```json
+data "aws_ami" "webserver_ami" {
+  most_recent = true
+
+  owners = ["self"]
+  tags = {
+    Name   = "webserver"
+    Tested = "true"
+    Deploy = "true"
+  }
+
+  resource "aws_instance" "web" {
+  ami = data.aws_ami.webserver_ami.id
+}
+}
+```
+- Filter the latest ubuntu ami is possible:
+```json
+# Find the latest available AMI that is tagged with Component = web
+data "aws_ami" "web" {
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+
+  filter {
+    name   = "tag:Component"
+    values = ["web"]
+  }
+
+  most_recent = true
+}
+```
+- Make a terraform.tfvars file and put some often used vars in it:
+```json
+whitelist               = ["0.0.0.0/0"]
+web_image_id            = "ami-045805cfa04cb5a27"
+web_instance_type       = "t2.micro"
+web_desired_capacity    = 1
+web_max_size            = 1
+web_min_size            = 1
+```
+- After that you can use these vars in your code. First put them at the begining of your file; add variable before and type after:
+```json
+variable "whitelist" {type = list(string)}
+variable "web_image_id" {type = string}
+variable "web_instance_type" {type = string}
+variable "web_desired_capacity" {type = number}
+variable "web_max_size" {type = number}
+variable "web_min_size" {type = number}
+```
+- To use inside your code use:
+```json
+var.whitelist
+var.web_image_id
+var.web_instance_type
+var.web_desired_capacity
+var.web_max_size
+var.web_min_size
+```
+- After these changes the values for these variables will be asked to us while making plan!
+## Modules
+- A module is a container for multiple resources that are used together. The .tf files in your working directory when you run terraform plan or terraform apply together form the root module. That module may call other modules and connect them together by passing output values from one to input values of another.
+- Most commonly, modules use:
+  - Input variables to accept values from the calling module.
+  - Output values to return results to the calling module, which it can then use to populate arguments elsewhere.
+  - Resources to define one or more infrastructure objects that the module will manage.
